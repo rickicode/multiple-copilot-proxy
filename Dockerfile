@@ -1,6 +1,7 @@
 FROM oven/bun:alpine AS builder
 WORKDIR /app
-
+# Install git
+RUN apk add --no-cache git
 # Copy package files
 COPY ./package.json ./bun.lock ./
 RUN bun install --frozen-lockfile
@@ -15,7 +16,8 @@ RUN bun run build
 
 FROM oven/bun:alpine AS runner
 WORKDIR /app
-
+# Install git
+RUN apk add --no-cache git
 # Install production dependencies
 COPY ./package.json ./bun.lock ./
 RUN bun install --frozen-lockfile --production --ignore-scripts --no-cache
