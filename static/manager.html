@@ -363,11 +363,10 @@
                         if (error.error === 'authorization_pending') {
                             authStatus.innerHTML = `Waiting for authorization... (${pollCount}/${maxPolls})`;
                         } else if (error.error === 'slow_down') {
-                            authStatus.innerHTML = 'Rate limited, slowing down polling...';
-                            // Increase interval significantly for rate limiting
-                            clearInterval(pollInterval);
-                            setTimeout(() => pollForToken(deviceCode, Math.max(interval + 5, 10), accountType), (interval + 5) * 1000);
-                            return;
+                            // Handle both server-side and client-side rate limiting
+                            const message = error.message || 'Rate limited, please wait...';
+                            authStatus.innerHTML = `🐌 ${message}`;
+                            // Continue with the same interval since server enforces rate limiting
                         } else if (error.error === 'access_denied') {
                             authStatus.innerHTML = '<span class="error">❌ Access denied. Authorization was cancelled.</span>';
                             clearInterval(pollInterval);
@@ -384,7 +383,7 @@
                     authStatus.innerHTML = '<span class="error">❌ Network error: ' + error.message + '</span>';
                     clearInterval(pollInterval);
                 }
-            }, interval * 1000);
+            }, 3000); // Fixed 3 second interval regardless of GitHub's suggested interval
         }
 
         async function viewModels(apiKey) {

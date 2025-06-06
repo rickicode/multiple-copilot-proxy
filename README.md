@@ -3,11 +3,17 @@
 ⚠️ **EDUCATIONAL PURPOSE ONLY** ⚠️
 This project is a reverse-engineered implementation of the GitHub Copilot API created for educational purposes only. It is not officially supported by GitHub and should not be used in production environments.
 
-[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/E1E519XS7W)
+> **Note**: This project is forked from [ericc-ch/copilot-api](https://github.com/ericc-ch/copilot-api) and has been modified to support multiple GitHub accounts with individual API keys for better account management and isolation.
 
 ## Project Overview
 
-A wrapper around GitHub Copilot API to make it OpenAI compatible, making it usable for other tools like AI assistants, local interfaces, and development utilities.
+A wrapper around GitHub Copilot API to make it OpenAI compatible, making it usable for other tools like AI assistants, local interfaces, and development utilities. This version includes a multi-account manager that allows you to:
+
+- Manage multiple GitHub Copilot accounts simultaneously
+- Generate unique API keys for each account
+- Web-based management interface at `/manager`
+- Account isolation and individual rate limiting
+- Support for both Individual and Business GitHub accounts
 
 ## Demo
 
@@ -66,6 +72,13 @@ Copilot API now uses a subcommand structure with two main commands:
 
 - `start`: Start the Copilot API server (default command). This command will also handle authentication if needed.
 - `auth`: Run GitHub authentication flow without starting the server. This is typically used if you need to generate a token for use with the `--github-token` option, especially in non-interactive environments.
+
+## Environment Variables
+
+| Variable          | Description                              | Default   |
+| ----------------- | ---------------------------------------- | --------- |
+| MANAGER_USERNAME  | Username for manager interface basic auth | admin     |
+| MANAGER_PASSWORD  | Password for manager interface basic auth | hijilabs  |
 
 ## Command Line Options
 

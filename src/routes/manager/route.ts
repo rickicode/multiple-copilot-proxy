@@ -14,8 +14,27 @@ import { pollAccessToken } from "~/services/github/poll-access-token"
 import { getGitHubUser } from "~/services/github/get-user"
 import { setupCopilotToken } from "~/lib/token"
 import { saveAccountsToDb } from "~/lib/account-manager"
+import { basicAuthMiddleware } from "~/lib/basic-auth-middleware"
 
 export const managerRoutes = new Hono()
+
+// Apply basic auth middleware to all manager routes
+managerRoutes.use('*', basicAuthMiddleware)
+
+// Store for tracking last poll time per device code to implement rate limiting
+const lastPollTimes = new Map<string, number>()
+
+// Clean up old entries every 15 minutes to prevent memory leaks
+setInterval(() => {
+  const now = Date.now()
+  const maxAge = 15 * 60 * 1000 // 15 minutes
+  
+  for (const [deviceCode, lastTime] of lastPollTimes.entries()) {
+    if (now - lastTime > maxAge) {
+      lastPollTimes.delete(deviceCode)
+    }
+  }
+}, 15 * 60 * 1000)
 
 // Serve static HTML file
 managerRoutes.get('/', async (c) => {
@@ -86,6 +105,24 @@ managerRoutes.post('/api/auth/poll', async (c) => {
       console.error('❌ No device code provided')
       return c.json({ error: 'device_code is required' }, 400)
     }
+    
+    // Rate limiting: enforce 3 second minimum interval between polls for same device code
+    const now = Date.now()
+    const lastPollTime = lastPollTimes.get(device_code) || 0
+    const timeSinceLastPoll = now - lastPollTime
+    const minInterval = 3000 // 3 seconds in milliseconds
+    
+    if (timeSinceLastPoll < minInterval) {
+      const waitTime = minInterval - timeSinceLastPoll
+      console.log(`🐌 Rate limiting: ${waitTime}ms remaining before next allowed poll`)
+      return c.json({ 
+        error: 'slow_down',
+        message: `Please wait ${Math.ceil(waitTime / 1000)} seconds before polling again`
+      }, 429)
+    }
+    
+    // Update last poll time
+    lastPollTimes.set(device_code, now)
     
     console.log('📡 Polling GitHub with device code:', device_code)
     
