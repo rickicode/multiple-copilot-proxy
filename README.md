@@ -46,6 +46,39 @@ Run the container
 docker run -p 4141:4141 copilot-api
 ```
 
+### Docker with Persistent Data Storage
+
+To persist account data across container restarts, mount a volume to `/app/data`:
+
+```sh
+# Create a local data directory
+mkdir -p ./copilot-data
+
+# Run with volume mount
+docker run -p 4141:4141 -v ./copilot-data:/app/data copilot-api
+```
+
+Or using docker-compose:
+
+```yaml
+version: '3.8'
+services:
+  copilot-api:
+    build: .
+    ports:
+      - "4141:4141"
+    volumes:
+      - ./copilot-data:/app/data
+    environment:
+      - MANAGER_USERNAME=admin
+      - MANAGER_PASSWORD=hijilabs
+```
+
+**Data Storage Location:**
+- **Container**: `/app/data/accounts.json`
+- **Host**: `./copilot-data/accounts.json`
+- **Default (no volume)**: `~/.local/share/copilot-api/accounts.json`
+
 ## Using with npx
 
 You can run the project directly using npx:

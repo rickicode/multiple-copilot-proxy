@@ -2,7 +2,8 @@ import fs from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
 
-const APP_DIR = path.join(os.homedir(), ".local", "share", "copilot-api")
+// Use DATA_DIR environment variable if set, otherwise use default path
+const APP_DIR = process.env.DATA_DIR || path.join(os.homedir(), ".local", "share", "copilot-api")
 
 const GITHUB_TOKEN_PATH = path.join(APP_DIR, "github_token")
 const ACCOUNTS_DB_PATH = path.join(APP_DIR, "accounts.json")
