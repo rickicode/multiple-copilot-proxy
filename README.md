@@ -49,6 +49,42 @@ Run the container
 docker run -p 4141:4141 copilot-api
 ```
 
+### Docker with Volume Binding
+
+To persist account data across container restarts, use volume binding:
+
+```sh
+# Create data directory on host
+mkdir -p ./data
+
+# Run with volume binding
+docker run -p 4141:4141 -v $(pwd)/data:/app/data copilot-api
+```
+
+### Docker Compose
+
+Create `docker-compose.yml`:
+
+```yaml
+version: '3.8'
+services:
+  copilot-api:
+    build: .
+    ports:
+      - "4141:4141"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - MANAGER_USERNAME=admin
+      - MANAGER_PASSWORD=hijilabs
+```
+
+Then run:
+
+```sh
+docker-compose up -d
+```
+
 ## Using with npx
 
 You can run the project directly using npx:
