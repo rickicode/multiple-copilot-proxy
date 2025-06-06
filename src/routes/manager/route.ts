@@ -137,10 +137,6 @@ managerRoutes.post('/api/auth/poll', async (c) => {
       console.log('⏳ Authorization pending...')
       return c.json({ error: 'authorization_pending' }, 400)
     }
-    if (errorMessage.includes('slow_down') || errorMessage.includes('Too many requests')) {
-      console.log('🐌 Slow down requested - rate limited')
-      return c.json({ error: 'slow_down' }, 400)
-    }
     if (errorMessage.includes('expired_token') || errorMessage.includes('expired')) {
       console.log('⏰ Token expired')
       return c.json({ error: 'expired_token' }, 400)

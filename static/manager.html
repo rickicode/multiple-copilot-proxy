@@ -362,11 +362,6 @@
                         
                         if (error.error === 'authorization_pending') {
                             authStatus.innerHTML = `Waiting for authorization... (${pollCount}/${maxPolls})`;
-                        } else if (error.error === 'slow_down') {
-                            // Handle both server-side and client-side rate limiting
-                            const message = error.message || 'Rate limited, please wait...';
-                            authStatus.innerHTML = `🐌 ${message}`;
-                            // Continue with the same interval since server enforces rate limiting
                         } else if (error.error === 'access_denied') {
                             authStatus.innerHTML = '<span class="error">❌ Access denied. Authorization was cancelled.</span>';
                             clearInterval(pollInterval);
