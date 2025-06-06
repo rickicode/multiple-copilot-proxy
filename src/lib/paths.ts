@@ -2,8 +2,7 @@ import fs from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
 
-// Use DATA_DIR environment variable if set, otherwise use default path
-const APP_DIR = process.env.DATA_DIR || path.join(os.homedir(), ".local", "share", "copilot-api")
+const APP_DIR = path.join(os.homedir(), ".local", "share", "copilot-api")
 
 const GITHUB_TOKEN_PATH = path.join(APP_DIR, "github_token")
 const ACCOUNTS_DB_PATH = path.join(APP_DIR, "accounts.json")
@@ -32,16 +31,16 @@ async function ensureFile(filePath: string): Promise<void> {
 }
 
 // Database functions for accounts
-export async function loadAccountsFromDisk(): Promise<Record<string, any>> {
+export async function loadAccountsFromDisk(): Promise<Record<string, unknown>> {
   try {
     const data = await fs.readFile(PATHS.ACCOUNTS_DB_PATH, "utf8")
-    return JSON.parse(data || "{}")
+    return JSON.parse(data || "{}") as Record<string, unknown>
   } catch {
     return {}
   }
 }
 
-export async function saveAccountsToDisk(accounts: Record<string, any>): Promise<void> {
+export async function saveAccountsToDisk(accounts: Record<string, unknown>): Promise<void> {
   await fs.writeFile(PATHS.ACCOUNTS_DB_PATH, JSON.stringify(accounts, null, 2))
   await fs.chmod(PATHS.ACCOUNTS_DB_PATH, 0o600)
 }

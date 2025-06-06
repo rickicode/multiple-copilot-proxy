@@ -1,5 +1,18 @@
 import type { ModelsResponse } from "~/services/copilot/get-models"
 
+export interface UsageStats {
+  totalRequests: number
+  totalTokens: number
+  dailyRequests: number
+  dailyTokens: number
+  lastResetDate: string
+  requestHistory: Array<{
+    timestamp: string
+    tokens: number
+    model: string
+  }>
+}
+
 export interface UserAccount {
   githubToken: string
   copilotToken?: string
@@ -9,6 +22,7 @@ export interface UserAccount {
   username?: string
   createdAt: string
   lastUsed: string
+  usage?: UsageStats
 }
 
 export interface GlobalState {

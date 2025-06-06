@@ -1,7 +1,8 @@
 import consola from "consola"
 import { 
   multiUserState, 
-  type UserAccount, 
+  type UserAccount,
+  type UsageStats, 
   generateApiKey, 
   setAccount, 
   getAccountByApiKey,
@@ -94,9 +95,84 @@ export function extractApiKeyFromAuthHeader(authHeader: string): string | null {
   if (!authHeader) return null
   
   // Support both "Bearer sk-xxx" and "sk-xxx" formats
-  const match = authHeader.match(/^(?:Bearer\s+)?(.+)$/)
+  const match = authHeader.match(/^(?:Bearer )?(.+)$/)
   if (!match) return null
   
   const apiKey = match[1]
   return validateApiKey(apiKey) ? apiKey : null
+}
+
+export function findAccountByUsername(username: string): [string, UserAccount] | null {
+  const accounts = getAllAccounts()
+  const found = accounts.find(([_, account]) => account.username === username)
+  return found || null
+}
+
+export function isGitHubAccountExists(username: string): boolean {
+  return findAccountByUsername(username) !== null
+}
+
+export function initializeUsageStats(): UsageStats {
+  return {
+    totalRequests: 0,
+    totalTokens: 0,
+    dailyRequests: 0,
+    dailyTokens: 0,
+    lastResetDate: new Date().toISOString().split('T')[0],
+    requestHistory: []
+  }
+}
+
+export function updateUsageStats(apiKey: string, tokens: number, model: string): void {
+  const account = getAccountByApiKey(apiKey)
+  if (!account) return
+
+  if (!account.usage) {
+    account.usage = initializeUsageStats()
+  }
+
+  const today = new Date().toISOString().split('T')[0]
+  
+  // Reset daily stats if it's a new day
+  if (account.usage.lastResetDate !== today) {
+    account.usage.dailyRequests = 0
+    account.usage.dailyTokens = 0
+    account.usage.lastResetDate = today
+  }
+
+  // Update stats
+  account.usage.totalRequests++
+  account.usage.totalTokens += tokens
+  account.usage.dailyRequests++
+  account.usage.dailyTokens += tokens
+
+  // Add to history (keep last 100 requests)
+  account.usage.requestHistory.push({
+    timestamp: new Date().toISOString(),
+    tokens,
+    model
+  })
+
+  if (account.usage.requestHistory.length > 100) {
+    account.usage.requestHistory = account.usage.requestHistory.slice(-100)
+  }
+
+  setAccount(apiKey, account)
+}
+
+export function getUsageStats(apiKey: string): UsageStats | null {
+  const account = getAccountByApiKey(apiKey)
+  if (!account || !account.usage) return null
+  
+  const today = new Date().toISOString().split('T')[0]
+  
+  // Reset daily stats if it's a new day
+  if (account.usage.lastResetDate !== today) {
+    account.usage.dailyRequests = 0
+    account.usage.dailyTokens = 0
+    account.usage.lastResetDate = today
+    setAccount(apiKey, account)
+  }
+
+  return account.usage
 }

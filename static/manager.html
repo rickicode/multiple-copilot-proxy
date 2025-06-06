@@ -165,7 +165,7 @@
             <p>2. Copy the generated API key for each account</p>
             <p>3. Use the API key in your applications:</p>
             <code>Authorization: Bearer your-api-key-here</code>
-            <p>4. Make requests to: <code>http://localhost:4141/v1/chat/completions</code></p>
+            <p>4. Make requests to: <code id="apiEndpoint"></code></p>
             <p>5. <strong><a href="/manager/test" target="_blank">🧪 Test your API endpoints here</a></strong></p>
         </div>
         
@@ -189,6 +189,9 @@
                 <p>Please visit the following URL and enter the code:</p>
                 <div id="verificationUrl"></div>
                 <div class="code-display" id="userCode"></div>
+                <div style="text-align: center; margin-top: 10px;">
+                    <button class="btn copy-btn" onclick="copyUserCode()" id="copyCodeBtn">📋 Copy Code</button>
+                </div>
                 <p>Waiting for authentication...</p>
                 <div id="authStatus"></div>
             </div>
@@ -271,6 +274,7 @@
                             </div>
                             <div>
                                 ${account.copilotToken ? `<button class="btn" onclick="viewModels('${account.apiKey}')">View Models</button>` : ''}
+                                ${account.copilotToken ? `<button class="btn" onclick="viewUsage('${account.apiKey}')" style="background: #28a745;">Usage Stats</button>` : ''}
                                 <button class="btn btn-danger" onclick="deleteAccount('${account.apiKey}')">Delete</button>
                             </div>
                         </div>
@@ -308,12 +312,16 @@
                 const data = await response.json();
                 console.log('Device code response:', data);
                 
-                document.getElementById('verificationUrl').innerHTML = `<a href="${data.verification_uri}" target="_blank">${data.verification_uri}</a>`;
+                document.getElementById('verificationUrl').innerHTML = `<a href="${data.verification_uri}" target="_blank" onclick="startPollingAfterDelay('${data.device_code}', ${data.interval}, '${accountType}')">${data.verification_uri}</a>`;
                 document.getElementById('userCode').textContent = data.user_code;
                 document.getElementById('deviceCodeSection').classList.remove('hidden');
                 
-                // Start polling for token
-                pollForToken(data.device_code, data.interval, accountType);
+                // Store data for delayed polling
+                window.authData = {
+                    device_code: data.device_code,
+                    interval: data.interval,
+                    accountType: accountType
+                };
             } catch (error) {
                 console.error('Failed to start auth:', error);
                 showToast('Failed to start authentication: ' + error.message, 'error');
@@ -362,11 +370,20 @@
                         
                         if (error.error === 'authorization_pending') {
                             authStatus.innerHTML = `Waiting for authorization... (${pollCount}/${maxPolls})`;
+                        } else if (error.error === 'slow_down') {
+                            authStatus.innerHTML = 'Rate limited, slowing down polling...';
+                            // Increase interval significantly for rate limiting
+                            clearInterval(pollInterval);
+                            setTimeout(() => pollForToken(deviceCode, 7, accountType), 7000);
+                            return;
                         } else if (error.error === 'access_denied') {
                             authStatus.innerHTML = '<span class="error">❌ Access denied. Authorization was cancelled.</span>';
                             clearInterval(pollInterval);
                         } else if (error.error === 'expired_token') {
                             authStatus.innerHTML = '<span class="error">❌ Code expired. Please try again.</span>';
+                            clearInterval(pollInterval);
+                        } else if (error.error === 'github_account_exists') {
+                            authStatus.innerHTML = '<span class="error">❌ ' + (error.message || 'GitHub account already exists') + '</span>';
                             clearInterval(pollInterval);
                         } else {
                             authStatus.innerHTML = '<span class="error">❌ ' + (error.error || 'Unknown error') + '</span>';
@@ -378,7 +395,7 @@
                     authStatus.innerHTML = '<span class="error">❌ Network error: ' + error.message + '</span>';
                     clearInterval(pollInterval);
                 }
-            }, 3000); // Fixed 3 second interval regardless of GitHub's suggested interval
+            }, interval * 2000);
         }
 
         async function viewModels(apiKey) {
@@ -425,6 +442,103 @@
             }
         }
 
+        async function viewUsage(apiKey) {
+            const usageDiv = document.getElementById(`models-${apiKey}`);
+            
+            if (usageDiv.style.display === 'block' && usageDiv.innerHTML.includes('Usage Statistics')) {
+                usageDiv.style.display = 'none';
+                return;
+            }
+            
+            usageDiv.innerHTML = '<p>Loading usage statistics...</p>';
+            usageDiv.style.display = 'block';
+            
+            try {
+                const response = await fetch(`/manager/api/usage/${apiKey}`);
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    usageDiv.innerHTML = `<p style="color: #dc3545;">Failed to load usage stats: ${error.error}</p>`;
+                    return;
+                }
+                
+                const data = await response.json();
+                const { usage, limits, accountType } = data;
+                
+                const dailyUsagePercent = Math.round((usage.dailyTokens / limits.dailyTokens) * 100);
+                const dailyRequestsPercent = Math.round((usage.dailyRequests / limits.dailyRequests) * 100);
+                
+                const getProgressBarColor = (percent) => {
+                    if (percent < 50) return '#28a745';
+                    if (percent < 80) return '#ffc107';
+                    return '#dc3545';
+                };
+                
+                const recentRequests = usage.requestHistory.slice(-5).reverse();
+                
+                usageDiv.innerHTML = `
+                    <h4>📊 Usage Statistics (${accountType.charAt(0).toUpperCase() + accountType.slice(1)})</h4>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 15px 0;">
+                        <div style="background: #fff; padding: 15px; border-radius: 6px; border: 1px solid #e1e4e8;">
+                            <h5 style="margin: 0 0 10px 0; color: #0366d6;">📅 Today's Usage</h5>
+                            <div style="margin-bottom: 8px;">
+                                <div style="display: flex; justify-content: space-between;">
+                                    <span>Requests:</span>
+                                    <span><strong>${usage.dailyRequests.toLocaleString()}</strong> / ${limits.dailyRequests.toLocaleString()}</span>
+                                </div>
+                                <div style="background: #f1f3f4; border-radius: 10px; height: 6px; margin-top: 4px;">
+                                    <div style="background: ${getProgressBarColor(dailyRequestsPercent)}; height: 100%; border-radius: 10px; width: ${Math.min(dailyRequestsPercent, 100)}%;"></div>
+                                </div>
+                            </div>
+                            <div>
+                                <div style="display: flex; justify-content: space-between;">
+                                    <span>Tokens:</span>
+                                    <span><strong>${usage.dailyTokens.toLocaleString()}</strong> / ${limits.dailyTokens.toLocaleString()}</span>
+                                </div>
+                                <div style="background: #f1f3f4; border-radius: 10px; height: 6px; margin-top: 4px;">
+                                    <div style="background: ${getProgressBarColor(dailyUsagePercent)}; height: 100%; border-radius: 10px; width: ${Math.min(dailyUsagePercent, 100)}%;"></div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div style="background: #fff; padding: 15px; border-radius: 6px; border: 1px solid #e1e4e8;">
+                            <h5 style="margin: 0 0 10px 0; color: #0366d6;">📈 Total Usage</h5>
+                            <div style="margin-bottom: 8px;">
+                                <span>Total Requests: </span>
+                                <strong>${usage.totalRequests.toLocaleString()}</strong>
+                            </div>
+                            <div>
+                                <span>Total Tokens: </span>
+                                <strong>${usage.totalTokens.toLocaleString()}</strong>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    ${recentRequests.length > 0 ? `
+                    <div style="background: #fff; padding: 15px; border-radius: 6px; border: 1px solid #e1e4e8; margin-top: 15px;">
+                        <h5 style="margin: 0 0 10px 0; color: #0366d6;">🕒 Recent Requests</h5>
+                        ${recentRequests.map(req => `
+                            <div style="display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid #f1f3f4;">
+                                <span style="font-size: 12px; color: #586069;">${new Date(req.timestamp).toLocaleString()}</span>
+                                <span style="font-size: 12px;"><strong>${req.tokens}</strong> tokens</span>
+                                <span style="font-size: 12px; color: #0366d6;">${req.model}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                    ` : ''}
+                    
+                    <div style="background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; padding: 10px; margin-top: 15px; font-size: 12px;">
+                        <strong>💡 Note:</strong> Limits are approximate based on GitHub Copilot documentation. Actual limits may vary.
+                        Daily usage resets at midnight UTC.
+                    </div>
+                `;
+            } catch (error) {
+                console.error('Failed to load usage stats:', error);
+                usageDiv.innerHTML = `<p style="color: #dc3545;">Network error: ${error.message}</p>`;
+            }
+        }
+
         async function deleteAccount(apiKey) {
             if (!confirm('Are you sure you want to delete this account?')) return;
             
@@ -446,7 +560,37 @@
             }
         }
 
+        // Function to copy user code to clipboard
+        function copyUserCode() {
+            const userCodeElement = document.getElementById('userCode');
+            const userCode = userCodeElement.textContent;
+            
+            navigator.clipboard.writeText(userCode).then(() => {
+                showToast('Device code copied to clipboard!');
+            }).catch(() => {
+                showToast('Failed to copy device code', 'error');
+            });
+        }
+
+        // Function to start polling after delay when clicking the GitHub link
+        function startPollingAfterDelay(deviceCode, interval, accountType) {
+            const authStatus = document.getElementById('authStatus');
+            authStatus.innerHTML = 'GitHub link clicked! Starting authentication polling in 3 seconds...';
+            
+            setTimeout(() => {
+                authStatus.innerHTML = 'Starting authentication polling...';
+                pollForToken(deviceCode, interval, accountType);
+            }, 5000);
+        }
+
+        // Set dynamic API endpoint
+        function setApiEndpoint() {
+            const baseUrl = window.location.origin;
+            document.getElementById('apiEndpoint').textContent = `${baseUrl}/v1/chat/completions`;
+        }
+
         // Load initial data
+        setApiEndpoint();
         loadStats();
         loadAccounts();
         

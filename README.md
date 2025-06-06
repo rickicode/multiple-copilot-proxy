@@ -1,19 +1,22 @@
-# Copilot API
+# Copilot API - Enhanced Multi-Account Manager
 
 ⚠️ **EDUCATIONAL PURPOSE ONLY** ⚠️
 This project is a reverse-engineered implementation of the GitHub Copilot API created for educational purposes only. It is not officially supported by GitHub and should not be used in production environments.
 
-> **Note**: This project is forked from [ericc-ch/copilot-api](https://github.com/ericc-ch/copilot-api) and has been modified to support multiple GitHub accounts with individual API keys for better account management and isolation.
+## 🔗 Fork Information
+
+This project is forked from [ericc-ch/copilot-api](https://github.com/ericc-ch/copilot-api) and has been enhanced with:
+- **Multi-account management** with web interface
+- **Basic authentication** for security
+- **Duplicate account prevention**
+- **Enhanced user experience** with improved UI/UX
+- **Dynamic configuration** support
+
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/E1E519XS7W)
 
 ## Project Overview
 
-A wrapper around GitHub Copilot API to make it OpenAI compatible, making it usable for other tools like AI assistants, local interfaces, and development utilities. This version includes a multi-account manager that allows you to:
-
-- Manage multiple GitHub Copilot accounts simultaneously
-- Generate unique API keys for each account
-- Web-based management interface at `/manager`
-- Account isolation and individual rate limiting
-- Support for both Individual and Business GitHub accounts
+A wrapper around GitHub Copilot API to make it OpenAI compatible, making it usable for other tools like AI assistants, local interfaces, and development utilities. This enhanced version includes a web-based manager interface for managing multiple GitHub Copilot accounts with API keys.
 
 ## Demo
 
@@ -46,39 +49,6 @@ Run the container
 docker run -p 4141:4141 copilot-api
 ```
 
-### Docker with Persistent Data Storage
-
-To persist account data across container restarts, mount a volume to `/app/data`:
-
-```sh
-# Create a local data directory
-mkdir -p ./copilot-data
-
-# Run with volume mount
-docker run -p 4141:4141 -v ./copilot-data:/app/data copilot-api
-```
-
-Or using docker-compose:
-
-```yaml
-version: '3.8'
-services:
-  copilot-api:
-    build: .
-    ports:
-      - "4141:4141"
-    volumes:
-      - ./copilot-data:/app/data
-    environment:
-      - MANAGER_USERNAME=admin
-      - MANAGER_PASSWORD=hijilabs
-```
-
-**Data Storage Location:**
-- **Container**: `/app/data/accounts.json`
-- **Host**: `./copilot-data/accounts.json`
-- **Default (no volume)**: `~/.local/share/copilot-api/accounts.json`
-
 ## Using with npx
 
 You can run the project directly using npx:
@@ -93,84 +63,117 @@ With options:
 npx copilot-api@latest start --port 8080
 ```
 
-For authentication only:
+
+## 🎮 Web Interface Usage
+
+This enhanced version uses a **web-based interface** instead of CLI commands for GitHub authentication and account management.
+
+### Quick Start
+
+1. **Start the server**:
+   ```sh
+   bun run start
+   # or
+   npx copilot-api@latest start
+   ```
+
+2. **Access the Manager Interface**:
+   - Open your browser and go to `http://localhost:4141/manager`
+   - Login with credentials: `admin` / `hijilabs` (or your custom credentials)
+
+3. **Add GitHub Accounts**:
+   - Click "Start GitHub Authentication"
+   - Follow the device code flow in the web interface
+   - Copy the device code and authorize on GitHub
+   - Your account will be automatically added with a unique API key
+
+4. **Use the API**:
+   - Copy the generated API key from the web interface
+   - Make requests to `http://localhost:4141/v1/chat/completions`
+   - Use `Authorization: Bearer your-api-key-here` header
+
+### Web Interface Workflow
+
+1. **Login to Manager**: Navigate to `/manager` and enter your credentials
+2. **View Dashboard**: See your account statistics and existing accounts
+3. **Add New Account**: 
+   - Select account type (Individual/Business)
+   - Click "Start GitHub Authentication"
+   - Copy the device code using the copy button
+   - Click the GitHub link to authorize (auto-polling will start)
+   - Wait for successful authentication
+4. **Manage Accounts**:
+   - View account details and status
+   - Copy API keys with one click
+   - Check available models for each account
+   - Delete accounts when needed
+5. **Test APIs**: Use the built-in API tester at `/manager/test`
+
+### Available Endpoints
+
+- **Manager Interface**: `http://localhost:4141/manager` - Web UI for account management
+- **API Tester**: `http://localhost:4141/manager/test` - Test your API endpoints
+- **Chat Completions**: `http://localhost:4141/v1/chat/completions` - OpenAI-compatible API
+- **Models**: `http://localhost:4141/v1/models` - List available models
+- **Embeddings**: `http://localhost:4141/v1/embeddings` - Text embeddings
+
+### Command Line Options
+
+The following options are available when starting the server:
+
+| Option     | Description                     | Default | Alias |
+| ---------- | ------------------------------- | ------- | ----- |
+| --port     | Port to listen on               | 4141    | -p    |
+| --verbose  | Enable verbose logging          | false   | -v    |
+| --manual   | Enable manual request approval  | false   | none  |
+
+### Example Usage
 
 ```sh
-npx copilot-api@latest auth
-```
+# Basic usage
+bun run start
 
-## Command Structure
+# Custom port
+bun run start --port 8080
 
-Copilot API now uses a subcommand structure with two main commands:
+# With verbose logging
+bun run start --verbose
 
-- `start`: Start the Copilot API server (default command). This command will also handle authentication if needed.
-- `auth`: Run GitHub authentication flow without starting the server. This is typically used if you need to generate a token for use with the `--github-token` option, especially in non-interactive environments.
+# Enable manual approval for requests
+bun run start --manual
 
-## Environment Variables
-
-| Variable          | Description                              | Default   |
-| ----------------- | ---------------------------------------- | --------- |
-| MANAGER_USERNAME  | Username for manager interface basic auth | admin     |
-| MANAGER_PASSWORD  | Password for manager interface basic auth | hijilabs  |
-
-## Command Line Options
-
-### Start Command Options
-
-The following command line options are available for the `start` command:
-
-| Option         | Description                                                                   | Default | Alias |
-| -------------- | ----------------------------------------------------------------------------- | ------- | ----- |
-| --port         | Port to listen on                                                             | 4141    | -p    |
-| --verbose      | Enable verbose logging                                                        | false   | -v    |
-| --business     | Use a business plan GitHub account                                            | false   | none  |
-| --manual       | Enable manual request approval                                                | false   | none  |
-| --rate-limit   | Rate limit in seconds between requests                                        | none    | -r    |
-| --wait         | Wait instead of error when rate limit is hit                                  | false   | -w    |
-| --github-token | Provide GitHub token directly (must be generated using the `auth` subcommand) | none    | -g    |
-| --vision       | Enable vision capabilities                                                    | false   | none  |
-
-### Auth Command Options
-
-| Option    | Description            | Default | Alias |
-| --------- | ---------------------- | ------- | ----- |
-| --verbose | Enable verbose logging | false   | -v    |
-
-## Example Usage
-
-Using with npx:
-
-```sh
-# Basic usage with start command
-npx copilot-api@latest start
-
-# Run on custom port with verbose logging
+# Using npx
 npx copilot-api@latest start --port 8080 --verbose
-
-# Use with a Business GitHub account
-npx copilot-api@latest start --business
-
-# Enable manual approval for each request
-npx copilot-api@latest start --manual
-
-# Set rate limit to 30 seconds between requests
-npx copilot-api@latest start --rate-limit 30
-
-# Wait instead of error when rate limit is hit
-npx copilot-api@latest start --rate-limit 30 --wait
-
-# Provide GitHub token directly
-npx copilot-api@latest start --github-token ghp_YOUR_TOKEN_HERE
-
-# Enable vision capabilities
-npx copilot-api@latest start --vision
-
-# Run only the auth flow
-npx copilot-api@latest auth
-
-# Run auth flow with verbose logging
-npx copilot-api@latest auth --verbose
 ```
+
+## 🆕 Enhanced Features
+
+This enhanced version includes several improvements over the original:
+
+### 🎯 Multi-Account Management
+- Web-based interface at `/manager` for managing multiple GitHub accounts
+- Each account gets a unique API key for isolation
+- Support for both Individual and Business GitHub Copilot accounts
+- Real-time account status monitoring
+
+### 🔒 Security Enhancements
+- Basic authentication protection for the manager interface
+- Configurable credentials via environment variables
+- Duplicate account prevention (same GitHub account cannot be added twice)
+- Secure API key generation and management
+
+### 🎨 User Experience Improvements
+- Modern, responsive web interface
+- One-click device code copying
+- Auto-polling after GitHub authentication
+- Dynamic API endpoint detection
+- Real-time feedback and status updates
+
+### 📊 Management Features
+- Account statistics dashboard
+- Model availability checking per account
+- Easy account deletion
+- API testing interface at `/manager/test`
 
 ## Running from Source
 
@@ -187,6 +190,34 @@ bun run dev
 ```sh
 bun run start
 ```
+
+## Manager Interface Security
+
+The `/manager` endpoint is protected with basic authentication for security purposes.
+
+### Default Credentials
+
+- **Username**: `admin`
+- **Password**: `hijilabs`
+
+### Environment Configuration
+
+You can customize the authentication credentials using environment variables:
+
+```bash
+# Copy the example environment file
+cp .env.example .env
+
+# Edit the file to set custom credentials
+MANAGER_USERNAME=your_username
+MANAGER_PASSWORD=your_password
+```
+
+### Accessing the Manager
+
+1. Navigate to `http://localhost:4141/manager`
+2. Enter your credentials when prompted
+3. Use the interface to manage GitHub Copilot accounts
 
 ## Usage Tips
 

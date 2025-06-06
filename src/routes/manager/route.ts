@@ -1,12 +1,13 @@
 import { Hono } from "hono"
-import { serveStatic } from "hono/serve-static"
 import fs from "node:fs/promises"
 import path from "node:path"
 import { 
   createAccount, 
   deleteAccount, 
   getAccountStats,
-  validateApiKey 
+  validateApiKey,
+  isGitHubAccountExists,
+  getUsageStats
 } from "~/lib/account-manager"
 import { getAllAccounts, getAccountByApiKey } from "~/lib/state"
 import { getDeviceCode } from "~/services/github/get-device-code"
@@ -14,12 +15,12 @@ import { pollAccessToken } from "~/services/github/poll-access-token"
 import { getGitHubUser } from "~/services/github/get-user"
 import { setupCopilotToken } from "~/lib/token"
 import { saveAccountsToDb } from "~/lib/account-manager"
-import { basicAuthMiddleware } from "~/lib/basic-auth-middleware"
+import { basicAuth } from "~/lib/basic-auth-middleware"
 
 export const managerRoutes = new Hono()
 
-// Apply basic auth middleware to all manager routes
-managerRoutes.use('*', basicAuthMiddleware)
+// Apply basic auth to all manager routes
+managerRoutes.use('*', basicAuth())
 
 // Serve static HTML file
 managerRoutes.get('/', async (c) => {
@@ -107,6 +108,15 @@ managerRoutes.post('/api/auth/poll', async (c) => {
     const user = await getGitHubUser(githubToken)
     console.log('✅ User info received:', user.login)
     
+    // Check if GitHub account already exists
+    if (isGitHubAccountExists(user.login)) {
+      console.log(`❌ GitHub account ${user.login} already exists`)
+      return c.json({ 
+        error: 'github_account_exists',
+        message: `GitHub account "${user.login}" is already registered. Please use a different account.`
+      }, 409)
+    }
+    
     // Create account
     const apiKey = await createAccount(githubToken, account_type)
     console.log('✅ Account created with API key:', apiKey)
@@ -136,6 +146,10 @@ managerRoutes.post('/api/auth/poll', async (c) => {
     if (errorMessage.includes('authorization_pending') || errorMessage.includes('still pending')) {
       console.log('⏳ Authorization pending...')
       return c.json({ error: 'authorization_pending' }, 400)
+    }
+    if (errorMessage.includes('slow_down') || errorMessage.includes('Too many requests')) {
+      console.log('🐌 Slow down requested - rate limited')
+      return c.json({ error: 'slow_down' }, 400)
     }
     if (errorMessage.includes('expired_token') || errorMessage.includes('expired')) {
       console.log('⏰ Token expired')
@@ -176,6 +190,57 @@ managerRoutes.get('/api/models/:apiKey', async (c) => {
   } catch (error) {
     console.error('Failed to get models for account:', error)
     return c.json({ error: 'Failed to get models' }, 500)
+  }
+})
+
+managerRoutes.get('/api/usage/:apiKey', async (c) => {
+  try {
+    const apiKey = c.req.param('apiKey')
+    
+    if (!validateApiKey(apiKey)) {
+      return c.json({ error: 'Invalid API key format' }, 400)
+    }
+    
+    const account = getAccountByApiKey(apiKey)
+    if (!account) {
+      return c.json({ error: 'Account not found' }, 404)
+    }
+    
+    const usage = getUsageStats(apiKey)
+    
+    // GitHub Copilot limits (approximate)
+    const limits = {
+      individual: {
+        dailyRequests: 2000,
+        dailyTokens: 100000,
+        monthlyRequests: 50000,
+        monthlyTokens: 2000000
+      },
+      business: {
+        dailyRequests: 5000,
+        dailyTokens: 500000,
+        monthlyRequests: 150000,
+        monthlyTokens: 10000000
+      }
+    }
+    
+    const accountLimits = limits[account.accountType as keyof typeof limits] || limits.individual
+    
+    return c.json({
+      usage: usage || {
+        totalRequests: 0,
+        totalTokens: 0,
+        dailyRequests: 0,
+        dailyTokens: 0,
+        lastResetDate: new Date().toISOString().split('T')[0],
+        requestHistory: []
+      },
+      limits: accountLimits,
+      accountType: account.accountType
+    })
+  } catch (error) {
+    console.error('Failed to get usage stats:', error)
+    return c.json({ error: 'Failed to get usage statistics' }, 500)
   }
 })
 

@@ -1,39 +1,35 @@
 import type { Context, Next } from "hono"
-import { HTTPException } from "hono/http-exception"
 
-export function basicAuthMiddleware(c: Context, next: Next) {
-  const authHeader = c.req.header('Authorization')
+interface BasicAuthConfig {
+  username: string
+  password: string
+  realm?: string
+}
+
+export function basicAuth(config?: Partial<BasicAuthConfig>) {
+  const username = config?.username || process.env.MANAGER_USERNAME || 'admin'
+  const password = config?.password || process.env.MANAGER_PASSWORD || 'hijilabs' 
+  const realm = config?.realm || 'Manager Area'
   
-  if (!authHeader || !authHeader.startsWith('Basic ')) {
-    // Send 401 with WWW-Authenticate header to prompt for basic auth
-    c.header('WWW-Authenticate', 'Basic realm="Manager Area"')
-    throw new HTTPException(401, {
-      message: 'Authentication required',
-    })
-  }
-
-  try {
-    // Extract base64 encoded credentials
-    const base64Credentials = authHeader.split(' ')[1]
-    const credentials = Buffer.from(base64Credentials, 'base64').toString('ascii')
-    const [username, password] = credentials.split(':')
-
-    // Get credentials from environment variables with defaults
-    const expectedUsername = process.env.MANAGER_USERNAME || 'admin'
-    const expectedPassword = process.env.MANAGER_PASSWORD || 'hijilabs'
-
-    if (username !== expectedUsername || password !== expectedPassword) {
-      c.header('WWW-Authenticate', 'Basic realm="Manager Area"')
-      throw new HTTPException(401, {
-        message: 'Invalid credentials',
+  return async (c: Context, next: Next) => {
+    const authorization = c.req.header('Authorization')
+    
+    if (!authorization || !authorization.startsWith('Basic ')) {
+      return c.text('Unauthorized', 401, {
+        'WWW-Authenticate': `Basic realm="${realm}"`
       })
     }
-
-    return next()
-  } catch (error) {
-    c.header('WWW-Authenticate', 'Basic realm="Manager Area"')
-    throw new HTTPException(401, {
-      message: 'Invalid authentication format',
-    })
+    
+    const credentials = authorization.slice(6) // Remove 'Basic '
+    const decoded = atob(credentials)
+    const [user, pass] = decoded.split(':')
+    
+    if (user !== username || pass !== password) {
+      return c.text('Unauthorized', 401, {
+        'WWW-Authenticate': `Basic realm="${realm}"`
+      })
+    }
+    
+    await next()
   }
 }
