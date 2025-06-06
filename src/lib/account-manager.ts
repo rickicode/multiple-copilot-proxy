@@ -102,6 +102,60 @@ export function extractApiKeyFromAuthHeader(authHeader: string): string | null {
   return validateApiKey(apiKey) ? apiKey : null
 }
 
+export function parseMultipleApiKeys(apiKeyString: string): string[] {
+  if (!apiKeyString) return []
+  
+  // If no comma, it's a single key
+  if (!apiKeyString.includes(',')) {
+    return validateApiKey(apiKeyString.trim()) ? [apiKeyString.trim()] : []
+  }
+  
+  // Split by comma and clean up each key
+  const keys = apiKeyString.split(',')
+    .map(key => key.trim())
+    .filter(key => validateApiKey(key))
+  
+  return keys
+}
+
+export function getAvailableApiKey(apiKeys: string[]): string | null {
+  for (const apiKey of apiKeys) {
+    const account = getAccountByApiKey(apiKey)
+    if (account && account.copilotToken && !isAccountLimited(apiKey)) {
+      return apiKey
+    }
+  }
+  return null
+}
+
+export function isAccountLimited(apiKey: string): boolean {
+  const usage = getUsageStats(apiKey)
+  if (!usage) return false
+  
+  const account = getAccountByApiKey(apiKey)
+  if (!account) return true
+  
+  // Define limits based on account type
+  const limits = {
+    individual: {
+      dailyRequests: 2000,
+      dailyTokens: 100000
+    },
+    business: {
+      dailyRequests: 5000,
+      dailyTokens: 500000
+    }
+  }
+  
+  const accountLimits = limits[account.accountType as keyof typeof limits] || limits.individual
+  
+  // Check if account is approaching limits (90% threshold)
+  const requestThreshold = accountLimits.dailyRequests * 0.9
+  const tokenThreshold = accountLimits.dailyTokens * 0.9
+  
+  return usage.dailyRequests >= requestThreshold || usage.dailyTokens >= tokenThreshold
+}
+
 export function findAccountByUsername(username: string): [string, UserAccount] | null {
   const accounts = getAllAccounts()
   const found = accounts.find(([_, account]) => account.username === username)

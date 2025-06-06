@@ -117,6 +117,48 @@ This enhanced version uses a **web-based interface** instead of CLI commands for
 - **Models**: `http://localhost:4141/v1/models` - List available models
 - **Embeddings**: `http://localhost:4141/v1/embeddings` - Text embeddings
 
+### 🔄 Multiple API Keys & Load Balancing
+
+This enhanced version supports **multiple API keys with automatic failover**:
+
+#### Usage Format
+```bash
+# Single API key (traditional)
+Authorization: Bearer sk-km6x39lcs568ao21gx7j
+
+# Multiple API keys (comma-separated)
+Authorization: Bearer sk-km6x39lcs568ao21gx7j,sk-9px5qbyrsdqn5k00woxho,sk-oolvjz4ajk5ugvgsvfaj3
+```
+
+#### How It Works
+1. **Primary Selection**: System uses the first available (non-limited) API key
+2. **Automatic Failover**: If primary key hits rate limits, automatically switches to the next available key
+3. **Load Balancing**: Distributes requests across healthy accounts
+4. **Smart Detection**: Detects rate limit errors (429, quota exceeded) and switches seamlessly
+
+#### Benefits
+- **Zero Downtime**: Continuous service even when one account hits limits
+- **Higher Throughput**: Combine limits from multiple accounts
+- **Cost Distribution**: Spread usage across multiple Copilot subscriptions
+- **Redundancy**: Built-in backup for critical applications
+
+#### Example Implementation
+```bash
+curl -X POST http://localhost:4141/v1/chat/completions \
+  -H "Authorization: Bearer sk-key1,sk-key2,sk-key3" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "gpt-4o",
+    "messages": [{"role": "user", "content": "Hello!"}]
+  }'
+```
+
+The system will automatically:
+- Try `sk-key1` first
+- If rate limited, switch to `sk-key2`
+- If rate limited, switch to `sk-key3`
+- Return appropriate error if all keys are exhausted
+
 ### Command Line Options
 
 The following options are available when starting the server:
