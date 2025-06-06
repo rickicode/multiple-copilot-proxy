@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Copilot API Manager</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 { color: #24292e; margin-bottom: 10px; }
+        .subtitle { color: #586069; margin-bottom: 30px; }
+        .section {
+            margin-bottom: 40px;
+            padding: 20px;
+            border: 1px solid #e1e4e8;
+            border-radius: 6px;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .stat-card {
+            background: #f6f8fa;
+            padding: 20px;
+            border-radius: 6px;
+            text-align: center;
+        }
+        .stat-number { font-size: 2em; font-weight: bold; color: #0366d6; }
+        .stat-label { color: #586069; margin-top: 5px; }
+        .btn {
+            background: #0366d6;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-right: 10px;
+        }
+        .btn:hover { background: #0256cc; }
+        .btn-danger { background: #d73a49; }
+        .btn-danger:hover { background: #cb2431; }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #e1e4e8;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        .account-card {
+            border: 1px solid #e1e4e8;
+            border-radius: 6px;
+            padding: 20px;
+            margin-bottom: 15px;
+            background: #f6f8fa;
+        }
+        .account-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .api-key {
+            font-family: monospace;
+            background: #fff;
+            padding: 5px 10px;
+            border-radius: 4px;
+            border: 1px solid #e1e4e8;
+            font-size: 12px;
+            max-width: 300px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .status-active { color: #28a745; }
+        .status-inactive { color: #dc3545; }
+        .device-code-section {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 6px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .code-display {
+            font-family: monospace;
+            font-size: 24px;
+            font-weight: bold;
+            text-align: center;
+            padding: 15px;
+            background: white;
+            border: 2px solid #0366d6;
+            border-radius: 6px;
+            margin: 15px 0;
+        }
+        .hidden { display: none; }
+        .success { color: #28a745; font-weight: bold; }
+        .error { color: #dc3545; font-weight: bold; }
+        .copy-btn {
+            background: #6f42c1;
+            font-size: 12px;
+            padding: 5px 10px;
+            margin-left: 10px;
+        }
+        .copy-btn:hover {
+            background: #5a32a3;
+        }
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #28a745;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 4px;
+            z-index: 1000;
+            transition: opacity 0.3s;
+        }
+        .instructions {
+            background: #e7f3ff;
+            border: 1px solid #b3d9ff;
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .instructions h3 {
+            margin-top: 0;
+            color: #0366d6;
+        }
+        .instructions code {
+            background: #f6f8fa;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Copilot API Manager</h1>
+        <p class="subtitle">Manage multiple GitHub Copilot accounts with API keys</p>
+        
+        <div class="instructions">
+            <h3>💡 How to Use</h3>
+            <p>1. Add your GitHub accounts using the form below</p>
+            <p>2. Copy the generated API key for each account</p>
+            <p>3. Use the API key in your applications:</p>
+            <code>Authorization: Bearer your-api-key-here</code>
+            <p>4. Make requests to: <code>http://localhost:4141/v1/chat/completions</code></p>
+            <p>5. <strong><a href="/manager/test" target="_blank">🧪 Test your API endpoints here</a></strong></p>
+        </div>
+        
+        <div class="stats" id="stats">
+            <!-- Stats will be loaded here -->
+        </div>
+
+        <div class="section">
+            <h2>Add New Account</h2>
+            <div class="form-group">
+                <label>Account Type:</label>
+                <select id="accountType">
+                    <option value="individual">Individual</option>
+                    <option value="business">Business</option>
+                </select>
+            </div>
+            <button class="btn" onclick="startAuth()">Start GitHub Authentication</button>
+            
+            <div id="deviceCodeSection" class="device-code-section hidden">
+                <h3>GitHub Authentication</h3>
+                <p>Please visit the following URL and enter the code:</p>
+                <div id="verificationUrl"></div>
+                <div class="code-display" id="userCode"></div>
+                <p>Waiting for authentication...</p>
+                <div id="authStatus"></div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Existing Accounts</h2>
+            <div id="accounts">
+                <!-- Accounts will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let pollInterval;
+        
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.style.background = type === 'success' ? '#28a745' : '#dc3545';
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => document.body.removeChild(toast), 300);
+            }, 3000);
+        }
+        
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                showToast('API Key copied to clipboard!');
+            }).catch(() => {
+                showToast('Failed to copy to clipboard', 'error');
+            });
+        }
+        
+        // Get base URL dynamically
+        const getBaseUrl = () => window.location.origin;
+        
+        async function loadStats() {
+            try {
+                const response = await fetch('/manager/api/stats');
+                const stats = await response.json();
+                document.getElementById('stats').innerHTML = `
+                    <div class="stat-card">
+                        <div class="stat-number">${stats.total}</div>
+                        <div class="stat-label">Total Accounts</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">${stats.withCopilotToken}</div>
+                        <div class="stat-label">Active Accounts</div>
+                    </div>
+                `;
+            } catch (error) {
+                console.error('Failed to load stats:', error);
+                showToast('Failed to load stats', 'error');
+            }
+        }
+
+        async function loadAccounts() {
+            try {
+                const response = await fetch('/manager/api/accounts');
+                const accounts = await response.json();
+                const container = document.getElementById('accounts');
+                
+                if (accounts.length === 0) {
+                    container.innerHTML = '<p>No accounts configured yet. Add your first account above!</p>';
+                    return;
+                }
+
+                container.innerHTML = accounts.map(account => `
+                    <div class="account-card">
+                        <div class="account-header">
+                            <div>
+                                <strong>${account.username || 'Unknown User'}</strong>
+                                <span class="${account.copilotToken ? 'status-active' : 'status-inactive'}">
+                                    ${account.copilotToken ? '● Active' : '● Inactive'}
+                                </span>
+                            </div>
+                            <div>
+                                ${account.copilotToken ? `<button class="btn" onclick="viewModels('${account.apiKey}')">View Models</button>` : ''}
+                                <button class="btn btn-danger" onclick="deleteAccount('${account.apiKey}')">Delete</button>
+                            </div>
+                        </div>
+                        <div style="margin: 10px 0;">
+                            API Key: <span class="api-key">${account.apiKey}</span>
+                            <button class="btn copy-btn" onclick="copyToClipboard('${account.apiKey}')">Copy</button>
+                        </div>
+                        <div>Account Type: ${account.accountType}</div>
+                        <div>Created: ${new Date(account.createdAt).toLocaleDateString()}</div>
+                        <div>Last Used: ${new Date(account.lastUsed).toLocaleDateString()}</div>
+                        <div id="models-${account.apiKey}" class="models-display" style="display: none; margin-top: 15px;"></div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Failed to load accounts:', error);
+                showToast('Failed to load accounts', 'error');
+            }
+        }
+
+        async function startAuth() {
+            try {
+                const accountType = document.getElementById('accountType').value;
+                console.log('Starting auth with type:', accountType);
+                
+                const response = await fetch('/manager/api/auth/start', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ accountType })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                console.log('Device code response:', data);
+                
+                document.getElementById('verificationUrl').innerHTML = `<a href="${data.verification_uri}" target="_blank">${data.verification_uri}</a>`;
+                document.getElementById('userCode').textContent = data.user_code;
+                document.getElementById('deviceCodeSection').classList.remove('hidden');
+                
+                // Start polling for token
+                pollForToken(data.device_code, data.interval, accountType);
+            } catch (error) {
+                console.error('Failed to start auth:', error);
+                showToast('Failed to start authentication: ' + error.message, 'error');
+            }
+        }
+
+        async function pollForToken(deviceCode, interval, accountType) {
+            const authStatus = document.getElementById('authStatus');
+            let pollCount = 0;
+            const maxPolls = 120; // 10 minutes if interval is 5 seconds
+            
+            console.log('Starting polling with device code:', deviceCode);
+            
+            pollInterval = setInterval(async () => {
+                pollCount++;
+                
+                if (pollCount > maxPolls) {
+                    clearInterval(pollInterval);
+                    authStatus.innerHTML = '<span class="error">❌ Authentication timeout. Please try again.</span>';
+                    return;
+                }
+                
+                try {
+                    console.log(`Polling attempt ${pollCount}...`);
+                    
+                    const response = await fetch('/manager/api/auth/poll', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ device_code: deviceCode, account_type: accountType })
+                    });
+                    
+                    console.log('Poll response status:', response.status);
+                    
+                    if (response.ok) {
+                        const result = await response.json();
+                        console.log('Authentication successful:', result);
+                        authStatus.innerHTML = '<span class="success">✅ Authentication successful! API Key: ' + result.apiKey + '</span>';
+                        clearInterval(pollInterval);
+                        document.getElementById('deviceCodeSection').classList.add('hidden');
+                        showToast('Account added successfully!');
+                        loadStats();
+                        loadAccounts();
+                    } else {
+                        const error = await response.json();
+                        console.log('Poll error:', error);
+                        
+                        if (error.error === 'authorization_pending') {
+                            authStatus.innerHTML = `Waiting for authorization... (${pollCount}/${maxPolls})`;
+                        } else if (error.error === 'slow_down') {
+                            authStatus.innerHTML = 'Rate limited, slowing down polling...';
+                            // Increase interval significantly for rate limiting
+                            clearInterval(pollInterval);
+                            setTimeout(() => pollForToken(deviceCode, Math.max(interval + 5, 10), accountType), (interval + 5) * 1000);
+                            return;
+                        } else if (error.error === 'access_denied') {
+                            authStatus.innerHTML = '<span class="error">❌ Access denied. Authorization was cancelled.</span>';
+                            clearInterval(pollInterval);
+                        } else if (error.error === 'expired_token') {
+                            authStatus.innerHTML = '<span class="error">❌ Code expired. Please try again.</span>';
+                            clearInterval(pollInterval);
+                        } else {
+                            authStatus.innerHTML = '<span class="error">❌ ' + (error.error || 'Unknown error') + '</span>';
+                            clearInterval(pollInterval);
+                        }
+                    }
+                } catch (error) {
+                    console.error('Polling error:', error);
+                    authStatus.innerHTML = '<span class="error">❌ Network error: ' + error.message + '</span>';
+                    clearInterval(pollInterval);
+                }
+            }, interval * 1000);
+        }
+
+        async function viewModels(apiKey) {
+            const modelsDiv = document.getElementById(`models-${apiKey}`);
+            
+            if (modelsDiv.style.display === 'block') {
+                modelsDiv.style.display = 'none';
+                return;
+            }
+            
+            modelsDiv.innerHTML = '<p>Loading models...</p>';
+            modelsDiv.style.display = 'block';
+            
+            try {
+                const response = await fetch(`/manager/api/models/${apiKey}`);
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    modelsDiv.innerHTML = `<p style="color: #dc3545;">Failed to load models: ${error.error}</p>`;
+                    return;
+                }
+                
+                const data = await response.json();
+                
+                if (data.data && data.data.length > 0) {
+                    const modelsList = data.data.map(model => `
+                        <div style="padding: 10px; border: 1px solid #e1e4e8; border-radius: 4px; margin: 5px 0; background: #fff;">
+                            <strong>${model.name}</strong> (${model.id})
+                            <br><small>Vendor: ${model.vendor} | Family: ${model.capabilities.family}</small>
+                            ${model.preview ? '<span style="color: #ffc107;"> 🚧 Preview</span>' : ''}
+                        </div>
+                    `).join('');
+                    
+                    modelsDiv.innerHTML = `
+                        <h4>Available Models (${data.data.length})</h4>
+                        ${modelsList}
+                    `;
+                } else {
+                    modelsDiv.innerHTML = '<p>No models found for this account.</p>';
+                }
+            } catch (error) {
+                console.error('Failed to load models:', error);
+                modelsDiv.innerHTML = `<p style="color: #dc3545;">Network error: ${error.message}</p>`;
+            }
+        }
+
+        async function deleteAccount(apiKey) {
+            if (!confirm('Are you sure you want to delete this account?')) return;
+            
+            try {
+                const response = await fetch(`/manager/api/accounts/${apiKey}`, {
+                    method: 'DELETE'
+                });
+                
+                if (response.ok) {
+                    showToast('Account deleted successfully');
+                    loadStats();
+                    loadAccounts();
+                } else {
+                    showToast('Failed to delete account', 'error');
+                }
+            } catch (error) {
+                console.error('Failed to delete account:', error);
+                showToast('Failed to delete account', 'error');
+            }
+        }
+
+        // Load initial data
+        loadStats();
+        loadAccounts();
+        
+        // Auto refresh every 30 seconds
+        setInterval(() => {
+            loadStats();
+            loadAccounts();
+        }, 30000);
+    </script>
+</body>
+</html>

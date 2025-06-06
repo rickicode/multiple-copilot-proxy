@@ -1,0 +1,61 @@
+{
+  "name": "copilot-api",
+  "version": "0.2.3",
+  "description": "A wrapper around GitHub Copilot API to make it OpenAI compatible, making it usable for other tools.",
+  "keywords": [
+    "proxy",
+    "github-copilot",
+    "openai-compatible"
+  ],
+  "homepage": "https://github.com/ericc-ch/copilot-api",
+  "bugs": "https://github.com/ericc-ch/copilot-api/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ericc-ch/copilot-api.git"
+  },
+  "author": "Erick Christian <erickchristian48@gmail.com>",
+  "type": "module",
+  "bin": {
+    "copilot-api": "./dist/main.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "bun run --watch ./src/main.ts",
+    "knip": "knip-bun",
+    "lint": "eslint .",
+    "prepack": "bun run build",
+    "prepare": "simple-git-hooks",
+    "release": "bumpp && bun publish --access public",
+    "start": "NODE_ENV=production bun run ./src/main.ts"
+  },
+  "simple-git-hooks": {
+    "pre-commit": "bunx lint-staged"
+  },
+  "lint-staged": {
+    "*": "bunx eslint --fix"
+  },
+  "dependencies": {
+    "citty": "^0.1.6",
+    "consola": "^3.4.2",
+    "fetch-event-stream": "^0.1.5",
+    "gpt-tokenizer": "^2.9.0",
+    "hono": "^4.7.11",
+    "srvx": "^0.7.3"
+  },
+  "devDependencies": {
+    "@echristian/eslint-config": "^0.0.42",
+    "@types/bun": "^1.2.15",
+    "bumpp": "^10.1.1",
+    "eslint": "^9.28.0",
+    "jiti": "^2.4.2",
+    "knip": "^5.59.1",
+    "lint-staged": "^16.1.0",
+    "prettier-plugin-packagejson": "^2.5.15",
+    "simple-git-hooks": "^2.13.0",
+    "tsup": "^8.5.0",
+    "typescript": "^5.8.3"
+  }
+}

@@ -1,0 +1,47 @@
+nohup: ignoring input
+ℹ Using VSCode version: 1.100.3
+ℹ Loaded 1 accounts from disk
+ℹ Server starting in multi-account mode
+ℹ Use /manager to configure GitHub accounts
+✔ Refreshed tokens for rayaghea11
+
+ ╭────────────────────────────────────────────────────────────╮
+ │                                                            │
+ │                                                            │
+ │  🚀 Copilot API Server - Multiple Account Support          │
+ │                                                            │
+ │  Server: http://localhost:8080                             │
+ │  Manager: http://localhost:8080/manager                    │
+ │  API Tester: http://localhost:8080/manager/test            │
+ │                                                            │
+ │  Visit the manager to configure multiple GitHub accounts!  │
+ │                                                            │
+ │                                                            │
+ ╰────────────────────────────────────────────────────────────╯
+
+  ➜ Listening on: http://localhost:8080/ (all interfaces)
+<-- GET /manager/test
+--> GET /manager/test [32m200[0m 2ms
+<-- GET /manager/api/stats
+--> GET /manager/api/stats [32m200[0m 1ms
+<-- GET /manager/api/accounts
+--> GET /manager/api/accounts [32m200[0m 0ms
+<-- GET /v1/models
+--> GET /v1/models [32m200[0m 1s
+<-- POST /v1/embeddings
+
+ ERROR  Error occurred: Failed to create embeddings
+
+    at new HTTPError (src/lib/http-error.ts:5:5)
+    at <anonymous> (src/services/copilot/create-embeddings.ts:29:31)
+    at processTicksAndRejections (native:7:39)
+
+--> POST /v1/embeddings [33m400[0m 365ms
+<-- GET /manager/api/stats
+--> GET /manager/api/stats [32m200[0m 0ms
+<-- GET /manager/api/accounts
+--> GET /manager/api/accounts [32m200[0m 0ms
+<-- GET /manager/api/stats
+--> GET /manager/api/stats [32m200[0m 0ms
+<-- GET /manager/api/accounts
+--> GET /manager/api/accounts [32m200[0m 0ms

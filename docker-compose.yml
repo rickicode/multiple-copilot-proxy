@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  copilot-api:
+    build: .
+    ports:
+      - "4141:4141"
+    volumes:
+      # Mount data directory for persistent account storage
+      - ./data:/app/data
+      # Optional: Mount custom static files for customization
+      - ./static:/app/static:ro
+    environment:
+      - NODE_ENV=production
+      - DATA_DIR=/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4141/manager/api/stats"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.copilot-api.rule=Host(`copilot-api.localhost`)"
+      - "traefik.http.services.copilot-api.loadbalancer.server.port=4141"
+
+  # Optional: Add Traefik reverse proxy
+  traefik:
+    image: traefik:v3.0
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+    ports:
+      - "80:80"
+      - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    profiles:
+      - "proxy"
+
+volumes:
+  data:
+    driver: local

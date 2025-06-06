@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Copilot API Tester</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 { color: #24292e; margin-bottom: 10px; }
+        .subtitle { color: #586069; margin-bottom: 30px; }
+        .section {
+            margin-bottom: 40px;
+            padding: 20px;
+            border: 1px solid #e1e4e8;
+            border-radius: 6px;
+        }
+        .btn {
+            background: #0366d6;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        .btn:hover { background: #0256cc; }
+        .btn-success { background: #28a745; }
+        .btn-success:hover { background: #218838; }
+        .btn-danger { background: #dc3545; }
+        .btn-danger:hover { background: #c82333; }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #e1e4e8;
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+        textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+        .code-block {
+            background: #f6f8fa;
+            border: 1px solid #e1e4e8;
+            border-radius: 6px;
+            padding: 15px;
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-size: 13px;
+            white-space: pre-wrap;
+            overflow-x: auto;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .status-success { background: #28a745; }
+        .status-error { background: #dc3545; }
+        .status-pending { background: #ffc107; }
+        .api-test-card {
+            border: 1px solid #e1e4e8;
+            border-radius: 6px;
+            padding: 20px;
+            margin-bottom: 20px;
+            background: #f8f9fa;
+        }
+        .api-test-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .nav-links {
+            margin-bottom: 20px;
+        }
+        .nav-links a {
+            color: #0366d6;
+            text-decoration: none;
+            margin-right: 20px;
+            padding: 5px 0;
+            border-bottom: 2px solid transparent;
+        }
+        .nav-links a:hover, .nav-links a.active {
+            border-bottom-color: #0366d6;
+        }
+        .loading {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+        .response-time {
+            font-size: 12px;
+            color: #586069;
+            margin-left: 10px;
+        }
+        .endpoint-info {
+            background: #e7f3ff;
+            border: 1px solid #b3d9ff;
+            border-radius: 6px;
+            padding: 10px;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Copilot API Tester</h1>
+        <p class="subtitle">Test OpenAI-compatible endpoints with your API keys</p>
+        
+        <div class="nav-links">
+            <a href="/manager">← Back to Manager</a>
+            <a href="/test" class="active">API Tester</a>
+        </div>
+
+        <!-- API Key Configuration -->
+        <div class="section">
+            <h2>API Configuration</h2>
+            <div class="form-group">
+                <label>API Key:</label>
+                <input type="password" id="apiKey" placeholder="sk-your-api-key-here">
+                <small>Get API key from <a href="/manager" target="_blank">Manager</a></small>
+            </div>
+            <div class="form-group">
+                <label>Base URL:</label>
+                <div style="display: flex; gap: 10px;">
+                    <input type="text" id="baseUrl" placeholder="https://your-api-server.com" style="flex: 1;">
+                    <button type="button" class="btn btn-danger" onclick="resetBaseUrl()" style="margin: 0;">Reset</button>
+                </div>
+                <small>Leave empty to use current server (<span id="currentServer"></span>)</small>
+            </div>
+        </div>
+
+        <!-- Chat Completions Test -->
+        <div class="section">
+            <h2>Chat Completions Test</h2>
+            <div class="endpoint-info">
+                <strong>POST</strong> <code>/v1/chat/completions</code> - OpenAI compatible chat completions
+            </div>
+            
+            <div class="form-group">
+                <label>Model:</label>
+                <select id="chatModel">
+                    <option value="gpt-4">gpt-4</option>
+                    <option value="gpt-3.5-turbo">gpt-3.5-turbo</option>
+                    <option value="claude-3-sonnet">claude-3-sonnet</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>Message:</label>
+                <textarea id="chatMessage" placeholder="Enter your message here...">Hello! Can you help me write a simple Python function?</textarea>
+            </div>
+            
+            <button class="btn" onclick="testChatCompletions()">Test Chat Completions</button>
+            
+            <div id="chatResult" class="api-test-card" style="display: none;">
+                <div class="api-test-header">
+                    <div>
+                        <span class="status-indicator" id="chatStatus"></span>
+                        <strong>Response</strong>
+                        <span class="response-time" id="chatTime"></span>
+                    </div>
+                </div>
+                <div class="code-block" id="chatResponse"></div>
+            </div>
+        </div>
+
+        <!-- Models Test -->
+        <div class="section">
+            <h2>Models List Test</h2>
+            <div class="endpoint-info">
+                <strong>GET</strong> <code>/v1/models</code> - List available models
+            </div>
+            
+            <button class="btn" onclick="testModels()">Test Models Endpoint</button>
+            
+            <div id="modelsResult" class="api-test-card" style="display: none;">
+                <div class="api-test-header">
+                    <div>
+                        <span class="status-indicator" id="modelsStatus"></span>
+                        <strong>Available Models</strong>
+                        <span class="response-time" id="modelsTime"></span>
+                    </div>
+                </div>
+                <div class="code-block" id="modelsResponse"></div>
+            </div>
+        </div>
+
+        <!-- Embeddings Test -->
+        <div class="section">
+            <h2>Embeddings Test</h2>
+            <div class="endpoint-info">
+                <strong>POST</strong> <code>/v1/embeddings</code> - Create text embeddings
+            </div>
+            
+            <div class="form-group">
+                <label>Text to embed:</label>
+                <textarea id="embeddingText" placeholder="Enter text to generate embeddings...">This is a sample text for embedding generation.</textarea>
+            </div>
+            
+            <button class="btn" onclick="testEmbeddings()">Test Embeddings</button>
+            
+            <div id="embeddingsResult" class="api-test-card" style="display: none;">
+                <div class="api-test-header">
+                    <div>
+                        <span class="status-indicator" id="embeddingsStatus"></span>
+                        <strong>Embeddings Response</strong>
+                        <span class="response-time" id="embeddingsTime"></span>
+                    </div>
+                </div>
+                <div class="code-block" id="embeddingsResponse"></div>
+            </div>
+        </div>
+
+        <!-- Batch Test -->
+        <div class="section">
+            <h2>Batch Test All Endpoints</h2>
+            <p>Test all endpoints sequentially to verify API functionality</p>
+            
+            <button class="btn btn-success" onclick="runBatchTest()">Run All Tests</button>
+            
+            <div id="batchResult" style="margin-top: 20px;"></div>
+        </div>
+    </div>
+
+    <script>
+        // Set current server info
+        document.getElementById('currentServer').textContent = window.location.origin;
+        
+        // Load saved base URL or use current origin
+        const savedBaseUrl = localStorage.getItem('copilot-api-base-url');
+        if (savedBaseUrl) {
+            document.getElementById('baseUrl').value = savedBaseUrl;
+        }
+        
+        function getApiKey() {
+            const apiKey = document.getElementById('apiKey').value.trim();
+            if (!apiKey) {
+                alert('Please enter an API key');
+                return null;
+            }
+            return apiKey;
+        }
+        
+        function getBaseUrl() {
+            const baseUrl = document.getElementById('baseUrl').value.trim();
+            return baseUrl || window.location.origin;
+        }
+        
+        async function makeApiRequest(url, options = {}) {
+            const startTime = Date.now();
+            
+            try {
+                const response = await fetch(url, {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${getApiKey()}`,
+                        ...options.headers
+                    },
+                    ...options
+                });
+                
+                const endTime = Date.now();
+                const responseTime = endTime - startTime;
+                
+                const data = await response.json();
+                
+                return {
+                    success: response.ok,
+                    status: response.status,
+                    data,
+                    responseTime
+                };
+            } catch (error) {
+                const endTime = Date.now();
+                const responseTime = endTime - startTime;
+                
+                return {
+                    success: false,
+                    error: error.message,
+                    responseTime
+                };
+            }
+        }
+        
+        function displayResult(resultId, statusId, timeId, responseId, result) {
+            const resultElement = document.getElementById(resultId);
+            const statusElement = document.getElementById(statusId);
+            const timeElement = document.getElementById(timeId);
+            const responseElement = document.getElementById(responseId);
+            
+            resultElement.style.display = 'block';
+            
+            if (result.success) {
+                statusElement.className = 'status-indicator status-success';
+                responseElement.textContent = JSON.stringify(result.data, null, 2);
+            } else {
+                statusElement.className = 'status-indicator status-error';
+                responseElement.textContent = result.error || JSON.stringify(result.data, null, 2);
+            }
+            
+            timeElement.textContent = `${result.responseTime}ms`;
+        }
+        
+        async function testChatCompletions() {
+            const apiKey = getApiKey();
+            if (!apiKey) return;
+            
+            const model = document.getElementById('chatModel').value;
+            const message = document.getElementById('chatMessage').value;
+            
+            const button = event.target;
+            button.classList.add('loading');
+            button.textContent = 'Testing...';
+            
+            const result = await makeApiRequest(`${getBaseUrl()}/v1/chat/completions`, {
+                method: 'POST',
+                body: JSON.stringify({
+                    model: model,
+                    messages: [
+                        { role: 'user', content: message }
+                    ],
+                    max_tokens: 100,
+                    temperature: 0.7
+                })
+            });
+            
+            displayResult('chatResult', 'chatStatus', 'chatTime', 'chatResponse', result);
+            
+            button.classList.remove('loading');
+            button.textContent = 'Test Chat Completions';
+        }
+        
+        async function testModels() {
+            const apiKey = getApiKey();
+            if (!apiKey) return;
+            
+            const button = event.target;
+            button.classList.add('loading');
+            button.textContent = 'Testing...';
+            
+            const result = await makeApiRequest(`${getBaseUrl()}/v1/models`);
+            
+            displayResult('modelsResult', 'modelsStatus', 'modelsTime', 'modelsResponse', result);
+            
+            button.classList.remove('loading');
+            button.textContent = 'Test Models Endpoint';
+        }
+        
+        async function testEmbeddings() {
+            const apiKey = getApiKey();
+            if (!apiKey) return;
+            
+            const text = document.getElementById('embeddingText').value;
+            
+            const button = event.target;
+            button.classList.add('loading');
+            button.textContent = 'Testing...';
+            
+            const result = await makeApiRequest(`${getBaseUrl()}/v1/embeddings`, {
+                method: 'POST',
+                body: JSON.stringify({
+                    input: text,
+                    model: 'text-embedding-ada-002'
+                })
+            });
+            
+            displayResult('embeddingsResult', 'embeddingsStatus', 'embeddingsTime', 'embeddingsResponse', result);
+            
+            button.classList.remove('loading');
+            button.textContent = 'Test Embeddings';
+        }
+        
+        async function runBatchTest() {
+            const apiKey = getApiKey();
+            if (!apiKey) return;
+            
+            const batchResult = document.getElementById('batchResult');
+            const button = event.target;
+            
+            button.classList.add('loading');
+            button.textContent = 'Running Tests...';
+            
+            batchResult.innerHTML = '<h3>Running batch tests...</h3>';
+            
+            const tests = [
+                {
+                    name: 'Models List',
+                    test: () => makeApiRequest(`${getBaseUrl()}/v1/models`)
+                },
+                {
+                    name: 'Chat Completions',
+                    test: () => makeApiRequest(`${getBaseUrl()}/v1/chat/completions`, {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            model: 'gpt-4',
+                            messages: [{ role: 'user', content: 'Hello!' }],
+                            max_tokens: 50
+                        })
+                    })
+                },
+                {
+                    name: 'Embeddings',
+                    test: () => makeApiRequest(`${getBaseUrl()}/v1/embeddings`, {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            input: 'Test text for embedding',
+                            model: 'text-embedding-ada-002'
+                        })
+                    })
+                }
+            ];
+            
+            let results = [];
+            
+            for (const test of tests) {
+                batchResult.innerHTML += `<p>🔄 Testing ${test.name}...</p>`;
+                
+                const result = await test.test();
+                const status = result.success ? '✅' : '❌';
+                const time = result.responseTime;
+                
+                results.push({
+                    name: test.name,
+                    success: result.success,
+                    time: time,
+                    error: result.error
+                });
+                
+                batchResult.innerHTML += `<p>${status} ${test.name}: ${time}ms ${result.success ? 'SUCCESS' : 'FAILED'}</p>`;
+            }
+            
+            // Summary
+            const successCount = results.filter(r => r.success).length;
+            const totalCount = results.length;
+            const avgTime = results.reduce((sum, r) => sum + r.time, 0) / totalCount;
+            
+            batchResult.innerHTML += `
+                <hr>
+                <h3>Test Summary</h3>
+                <p><strong>Success Rate:</strong> ${successCount}/${totalCount} (${Math.round(successCount/totalCount*100)}%)</p>
+                <p><strong>Average Response Time:</strong> ${Math.round(avgTime)}ms</p>
+            `;
+            
+            if (successCount === totalCount) {
+                batchResult.innerHTML += '<p style="color: #28a745; font-weight: bold;">🎉 All tests passed! API is working correctly.</p>';
+            } else {
+                batchResult.innerHTML += '<p style="color: #dc3545; font-weight: bold;">⚠️ Some tests failed. Please check your configuration.</p>';
+            }
+            
+            button.classList.remove('loading');
+            button.textContent = 'Run All Tests';
+        }
+        
+        // Auto-load API key from localStorage if available
+        const savedApiKey = localStorage.getItem('copilot-api-key');
+        if (savedApiKey) {
+            document.getElementById('apiKey').value = savedApiKey;
+        }
+        
+        // Save API key to localStorage when changed
+        document.getElementById('apiKey').addEventListener('input', function() {
+            localStorage.setItem('copilot-api-key', this.value);
+        });
+        
+        // Save Base URL to localStorage when changed
+        document.getElementById('baseUrl').addEventListener('input', function() {
+            localStorage.setItem('copilot-api-base-url', this.value);
+        });
+        
+        // Add reset button functionality
+        function resetBaseUrl() {
+            document.getElementById('baseUrl').value = '';
+            localStorage.removeItem('copilot-api-base-url');
+        }
+    </script>
+</body>
+</html>
